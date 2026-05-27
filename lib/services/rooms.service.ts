@@ -311,18 +311,11 @@ export async function deleteRoom(
     throw forbiddenError("Only the room host can delete this room.");
   }
 
-  if (room.state !== "active") {
-    throw forbiddenError(
-      "Only active rooms can be deleted. Drawing or finished rooms cannot be removed."
-    );
-  }
-
   const { error: deleteError } = await supabase
     .from("rooms")
     .delete()
     .eq("id", roomId)
-    .eq("host_id", userId) // Belt-and-suspenders: RLS also enforces this
-    .eq("state", "active");
+    .eq("host_id", userId); // Belt-and-suspenders: RLS also enforces this
 
   if (deleteError) {
     logger.error("[rooms.service] deleteRoom DB error", deleteError, { roomId, userId });

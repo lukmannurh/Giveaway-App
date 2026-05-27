@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { LocalTime } from "@/components/shared/LocalTime";
+import { DeleteRoomButton } from "@/components/rooms/DeleteRoomButton";
 
 import { Suspense } from "react";
 
@@ -23,6 +24,7 @@ async function HistoryContent({ searchParams }: PageProps) {
   const offset = (page - 1) * PAGE_SIZE;
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Fetch finished rooms with host info and top winner
   const { data: rooms, count } = await supabase
@@ -157,6 +159,13 @@ async function HistoryContent({ searchParams }: PageProps) {
                         </span>
                       </div>
                     </div>
+
+                    {/* Actions */}
+                    {user?.id === room.host_id && (
+                      <div className="ml-4 self-center" onClick={(e) => e.preventDefault()}>
+                        <DeleteRoomButton roomId={room.id} roomTitle={room.title} />
+                      </div>
+                    )}
                   </div>
                 </Link>
               </li>

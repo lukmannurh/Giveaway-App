@@ -59,14 +59,15 @@ export function formatCountdown(timeLeft: TimeLeft): string {
  * formatTimestamp("2025-06-15T14:30:00Z") → "Jun 15, 2025 at 2:30 PM"
  */
 export function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+  return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  });
+    timeZone: "Asia/Jakarta",
+  }).format(new Date(iso));
 }
 
 /**
@@ -77,17 +78,19 @@ export function formatTimestamp(iso: string): string {
  */
 export function formatDeadline(iso: string): string {
   const date = new Date(iso);
-  const datePart = date.toLocaleDateString("en-US", {
+  const dateFormatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
-  const timePart = date.toLocaleTimeString("en-US", {
+  const timeFormatter = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "Asia/Jakarta",
   });
-  return `${datePart} · ${timePart}`;
+  return `${dateFormatter.format(date)} · ${timeFormatter.format(date)}`;
 }
 
 /**

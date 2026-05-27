@@ -109,10 +109,25 @@ export async function GET(request: NextRequest) {
   const succeeded = summary.filter((r) => r.success).length;
   const failed = summary.filter((r) => !r.success).length;
 
+  // ── Auto-Delete 7-Day History ──────────────────────────────────
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { count: deletedRoomsCount, error: deleteError } = await supabaseAdmin
+    .from("rooms")
+    .delete({ count: "exact" })
+    .eq("state", "finished")
+    .lt("drawing_completed_at", sevenDaysAgo);
+
+  if (deleteError) {
+    logger.error("[GET /api/cron/check-deadlines] Failed to cleanup old rooms", deleteError);
+  } else if (deletedRoomsCount && deletedRoomsCount > 0) {
+    logger.info(`[GET /api/cron/check-deadlines] Cleaned up ${deletedRoomsCount} old rooms`);
+  }
+
   logger.info("[GET /api/cron/check-deadlines] Cron run complete", {
     triggered: rooms.length,
     succeeded,
     failed,
+    cleanedUp: deletedRoomsCount ?? 0,
     durationMs: Date.now() - startTime,
   });
 
@@ -121,6 +136,7 @@ export async function GET(request: NextRequest) {
       triggered: rooms.length,
       succeeded,
       failed,
+      cleanedUp: deletedRoomsCount ?? 0,
       results: summary,
     },
     { status: 200 }

@@ -69,9 +69,32 @@ export function DrawingAnimation({
 
   // Strict 5-second timer (ZERO latency reveal)
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      // Reveal whatever we have so far
-      setWinners([...pendingWinnersRef.current]);
+    const timeout = setTimeout(async () => {
+      let finalWinners = [...pendingWinnersRef.current];
+
+      // If the broadcast was missed (e.g. force draw finished instantly and broadcast fired before component mounted),
+      // we must fetch the final winners directly from the database to ensure they are displayed correctly.
+      if (finalWinners.length === 0 && participantCount > 0) {
+        try {
+          const res = await fetch(`/api/rooms/${roomId}/winners`);
+          if (res.ok) {
+            const data = await res.json();
+            // Map the API response shape to the component's expected shape
+            finalWinners = data.winners.map((w: any) => ({
+              sequence: w.sequence,
+              userId: w.userId,
+              username: w.user?.username || "Unknown User",
+              selectedNumber: w.selectedNumber,
+            }));
+            // Update the ref so it's consistent
+            pendingWinnersRef.current = finalWinners;
+          }
+        } catch (err) {
+          // Fallback handled by UI
+        }
+      }
+
+      setWinners(finalWinners);
       setPhase("done");
       
       // Refresh the server components in the background so the participant list updates
@@ -80,7 +103,7 @@ export function DrawingAnimation({
     }, 5000); // STRICT 5000ms
 
     return () => clearTimeout(timeout);
-  }, [roomId, router]);
+  }, [roomId, router, participantCount]);
 
   if (phase === "done") {
     return (
