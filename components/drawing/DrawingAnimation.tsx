@@ -123,8 +123,9 @@ export function DrawingAnimation({
           const targetWinner = w.sort((a, b) => a.sequence - b.sequence)[currentWinnerIndex];
           
           if (targetWinner) {
-            const str = String(targetWinner.selectedNumber).padStart(3, '0');
-            setDisplayDigits([str[0], str[1], str[2]]);
+            const str = String(targetWinner.selectedNumber);
+            const padded = str.padStart(3, ' ');
+            setDisplayDigits([padded[0], padded[1], padded[2]]);
           } else {
             setDisplayDigits(['-', '-', '-']);
           }
@@ -152,7 +153,7 @@ export function DrawingAnimation({
             setCurrentWinnerIndex(idx => idx + 1);
             setPhase("spinning");
           }
-        }, 1000); // 1 second pause to reveal winner
+        }, 1500); // 1.5 second pause to reveal winner
         
         return () => clearTimeout(timeout);
       }
