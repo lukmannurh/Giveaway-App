@@ -6,14 +6,15 @@ import { useRouter } from "next/navigation";
 interface DeleteRoomButtonProps {
   roomId: string;
   roomTitle: string;
+  isFinished?: boolean;
 }
 
 /**
  * DeleteRoomButton — Client Component.
  * Shows a confirmation dialog before calling DELETE /api/rooms/[id].
- * Only rendered by the host on active rooms.
+ * Rendered by the host to delete active or finished rooms.
  */
-export function DeleteRoomButton({ roomId, roomTitle }: DeleteRoomButtonProps) {
+export function DeleteRoomButton({ roomId, roomTitle, isFinished }: DeleteRoomButtonProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -59,7 +60,9 @@ export function DeleteRoomButton({ roomId, roomTitle }: DeleteRoomButtonProps) {
           Delete <span className="font-black">"{roomTitle}"</span>?
         </p>
         <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-          This will permanently remove the room and all participant records. This cannot be undone.
+          {isFinished
+            ? "Are you sure you want to delete this drawing history? This cannot be undone."
+            : "This will permanently remove the room and all participant records. This cannot be undone."}
         </p>
 
         {error && (

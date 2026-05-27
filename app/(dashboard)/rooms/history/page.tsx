@@ -46,10 +46,16 @@ async function HistoryContent({ searchParams }: PageProps) {
 
   return (
     <>
-      {/* Header Info (Total Count) */}
-      <div className="mb-6 -mt-10">
-        <p className="mt-1 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+      {/* Header Container */}
+      <div className="flex flex-col gap-2 mb-6">
+        <h1 className="text-3xl font-black" style={{ fontFamily: "var(--font-display)" }}>
+          📜 Drawing History
+        </h1>
+        <p className="text-sm font-medium" style={{ color: "var(--color-muted-foreground)" }}>
           {count ?? 0} completed giveaway{(count ?? 0) !== 1 ? "s" : ""}
+        </p>
+        <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+          Riwayat pengundian akan dihapus otomatis dari sistem setelah 7 hari.
         </p>
       </div>
 
@@ -163,7 +169,7 @@ async function HistoryContent({ searchParams }: PageProps) {
                     {/* Actions */}
                     {user?.id === room.host_id && (
                       <div className="ml-4 self-center" onClick={(e) => e.preventDefault()}>
-                        <DeleteRoomButton roomId={room.id} roomTitle={room.title} />
+                        <DeleteRoomButton roomId={room.id} roomTitle={room.title} isFinished={true} />
                       </div>
                     )}
                   </div>
@@ -216,17 +222,12 @@ async function HistoryContent({ searchParams }: PageProps) {
 export default function HistoryPage(props: PageProps) {
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h1
-          className="text-3xl font-black"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          📜 Drawing History
-        </h1>
-      </div>
-      
-      <Suspense fallback={<p>Loading...</p>}>
+      <Suspense fallback={
+        <div className="flex flex-col gap-2 mb-6">
+          <h1 className="text-3xl font-black" style={{ fontFamily: "var(--font-display)" }}>📜 Drawing History</h1>
+          <p className="text-sm font-medium animate-pulse" style={{ color: "var(--color-muted-foreground)" }}>Loading history...</p>
+        </div>
+      }>
         <HistoryContent searchParams={props.searchParams} />
       </Suspense>
     </div>
