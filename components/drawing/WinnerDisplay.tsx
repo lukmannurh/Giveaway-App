@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { formatTimestamp } from "@/lib/utils/date";
+import { LocalTime } from "@/components/shared/LocalTime";
 
 interface WinnerEntry {
   userId: string;
@@ -42,7 +42,7 @@ export function WinnerDisplay({ room, winners, currentUserId }: WinnerDisplayPro
             {room.drawingParticipantCount ?? 0} participants · {winners.length} winner
             {winners.length !== 1 ? "s" : ""}
             {room.drawingCompletedAt && (
-              <> · {formatTimestamp(room.drawingCompletedAt)}</>
+              <> · <LocalTime iso={room.drawingCompletedAt} format="timestamp" /></>
             )}
           </p>
         </div>

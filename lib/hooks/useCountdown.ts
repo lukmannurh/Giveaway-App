@@ -19,6 +19,7 @@ interface UseCountdownOptions {
  * Uses a ref to avoid re-subscribing when `onExpire` identity changes.
  */
 export function useCountdown({ deadline, onExpire }: UseCountdownOptions): TimeLeft {
+  const [isMounted, setIsMounted] = useState(false);
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => calculateTimeLeft(deadline));
   const hasExpiredRef = useRef(false);
   const onExpireRef = useRef(onExpire);
@@ -29,6 +30,7 @@ export function useCountdown({ deadline, onExpire }: UseCountdownOptions): TimeL
   });
 
   useEffect(() => {
+    setIsMounted(true);
     // Reset on deadline change
     hasExpiredRef.current = false;
     setTimeLeft(calculateTimeLeft(deadline));
@@ -45,6 +47,11 @@ export function useCountdown({ deadline, onExpire }: UseCountdownOptions): TimeL
 
     return () => clearInterval(interval);
   }, [deadline]);
+
+  // Return empty TimeLeft during SSR to prevent mismatch
+  if (!isMounted) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 1000000, isExpired: false };
+  }
 
   return timeLeft;
 }

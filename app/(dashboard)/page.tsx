@@ -4,26 +4,36 @@ import { createClient } from "@/lib/supabase/server";
 import { getRooms } from "@/lib/services/rooms.service";
 import { RoomList } from "@/components/rooms/RoomList";
 
+import { Suspense } from "react";
+
 export const metadata: Metadata = {
   title: "Browse Rooms — Giveaway App",
   description:
     "Browse active giveaway rooms, join one and select your lucky number before the deadline.",
 };
 
-/**
- * Home page — Server Component.
- * Fetches the first page of active rooms server-side for fast initial render,
- * then hands control to RoomList (Client) for filtering, pagination, and realtime.
- */
-export default async function HomePage() {
+async function HeroActions() {
   const supabase = await createClient();
-
-  // Fetch auth user (for personalised CTA)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // SSR initial data: first 12 rooms (all states, newest first)
+  if (!user) return null;
+
+  return (
+    <Link
+      href="/rooms/create"
+      id="hero-create-room-btn"
+      className="neo-btn neo-btn-primary flex-shrink-0"
+      aria-label="Create a new giveaway room"
+    >
+      ➕ Create Room
+    </Link>
+  );
+}
+
+async function RoomsWrapper() {
+  const supabase = await createClient();
   const initialData = await getRooms(supabase, { page: 1, limit: 12 }).catch(
     () => ({
       rooms: [],
@@ -38,6 +48,14 @@ export default async function HomePage() {
     })
   );
 
+  return <RoomList initialData={initialData} />;
+}
+
+/**
+ * Home page — Server Component.
+ * Implements Streaming with Suspense to return the layout instantly.
+ */
+export default function HomePage() {
   return (
     <div>
       {/* Hero section */}
@@ -59,21 +77,16 @@ export default async function HomePage() {
               Pick your lucky number. Win prizes. Fair draws every time.
             </p>
           </div>
-          {user && (
-            <Link
-              href="/rooms/create"
-              id="hero-create-room-btn"
-              className="neo-btn neo-btn-primary flex-shrink-0"
-              aria-label="Create a new giveaway room"
-            >
-              ➕ Create Room
-            </Link>
-          )}
+          <Suspense fallback={<div className="w-[140px] h-[44px] bg-[var(--color-muted)] border-2 border-[var(--color-border)] animate-pulse" />}>
+            <HeroActions />
+          </Suspense>
         </div>
       </section>
 
       {/* Room list with filter tabs, pagination, realtime updates */}
-      <RoomList initialData={initialData} />
+      <Suspense fallback={<p>Loading...</p>}>
+        <RoomsWrapper />
+      </Suspense>
     </div>
   );
 }

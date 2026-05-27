@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { formatTimestamp, formatDeadline } from "@/lib/utils/date";
+import { LocalTime } from "@/components/shared/LocalTime";
+
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Drawing History — Giveaway App",
@@ -15,11 +17,7 @@ interface PageProps {
   searchParams: Promise<{ page?: string }>;
 }
 
-/**
- * History Page — Server Component.
- * Paginated list of finished rooms with their winners.
- */
-export default async function HistoryPage({ searchParams }: PageProps) {
+async function HistoryContent({ searchParams }: PageProps) {
   const { page: pageStr } = await searchParams;
   const page = Math.max(1, parseInt(pageStr ?? "1"));
   const offset = (page - 1) * PAGE_SIZE;
@@ -45,15 +43,9 @@ export default async function HistoryPage({ searchParams }: PageProps) {
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h1
-          className="text-3xl font-black"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          📜 Drawing History
-        </h1>
+    <>
+      {/* Header Info (Total Count) */}
+      <div className="mb-6 -mt-10">
         <p className="mt-1 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
           {count ?? 0} completed giveaway{(count ?? 0) !== 1 ? "s" : ""}
         </p>
@@ -160,8 +152,8 @@ export default async function HistoryPage({ searchParams }: PageProps) {
                         <span>👥 {room.drawing_participant_count ?? 0}</span>
                         <span>
                           {room.drawing_completed_at
-                            ? formatTimestamp(room.drawing_completed_at)
-                            : formatDeadline(room.deadline)}
+                            ? <LocalTime iso={room.drawing_completed_at} format="timestamp" />
+                            : <LocalTime iso={room.deadline} format="deadline" />}
                         </span>
                       </div>
                     </div>
@@ -204,6 +196,30 @@ export default async function HistoryPage({ searchParams }: PageProps) {
           )}
         </nav>
       )}
+    </>
+  );
+}
+
+/**
+ * History Page — Server Component.
+ * Uses Suspense to instantly stream the layout.
+ */
+export default function HistoryPage(props: PageProps) {
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1
+          className="text-3xl font-black"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          📜 Drawing History
+        </h1>
+      </div>
+      
+      <Suspense fallback={<p>Loading...</p>}>
+        <HistoryContent searchParams={props.searchParams} />
+      </Suspense>
     </div>
   );
 }

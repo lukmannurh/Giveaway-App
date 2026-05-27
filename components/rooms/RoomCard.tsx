@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CountdownTimer } from "@/components/drawing/CountdownTimer";
-import { formatDeadline } from "@/lib/utils/date";
+import { LocalTime } from "@/components/shared/LocalTime";
 import type { RoomListItem } from "@/lib/types";
 
 interface RoomCardProps {
@@ -102,9 +102,8 @@ export function RoomCard({ room }: RoomCardProps) {
             <span
               className="text-xs font-medium"
               style={{ color: "var(--color-muted-foreground)" }}
-              aria-label={`Deadline: ${formatDeadline(room.deadline)}`}
             >
-              📅 {formatDeadline(room.deadline)}
+              📅 <LocalTime iso={room.deadline} format="deadline" />
             </span>
           )}
         </div>

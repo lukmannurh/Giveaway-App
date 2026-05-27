@@ -45,11 +45,19 @@ export function DrawingAnimation({
     const channel = supabase
       .channel(`room:${roomId}`)
       .on("broadcast", { event: "winner_selected" }, ({ payload }) => {
-        pendingWinnersRef.current.push({
+        const newWinner = {
           sequence: payload.sequence,
           userId: payload.userId,
           username: payload.username || "Unknown User",
           selectedNumber: payload.selectedNumber,
+        };
+        pendingWinnersRef.current.push(newWinner);
+        
+        // If the 5000ms spin already ended, immediately reveal the winner as it arrives
+        setWinners((prev) => {
+          if (prev.find((w) => w.sequence === newWinner.sequence)) return prev;
+          // Only update state if phase is done, or if it's currently spinning (it won't render until phase is done anyway, but it's safe to sync state)
+          return [...prev, newWinner];
         });
       })
       .subscribe();
@@ -62,12 +70,11 @@ export function DrawingAnimation({
   // Strict 5-second timer (ZERO latency reveal)
   useEffect(() => {
     const timeout = setTimeout(() => {
-      // Instantly reveal using data that was quietly accumulating via realtime stream
+      // Reveal whatever we have so far
       setWinners([...pendingWinnersRef.current]);
       setPhase("done");
       
-      // Refresh the server components in the background so the participant list updates,
-      // but DO NOT unmount this component by calling onComplete() so the dramatic reveal stays on screen!
+      // Refresh the server components in the background so the participant list updates
       router.refresh();
       
     }, 5000); // STRICT 5000ms
@@ -92,11 +99,13 @@ export function DrawingAnimation({
               </li>
             ))}
           </ul>
+        ) : participantCount > 0 ? (
+          <div className="flex flex-col items-center justify-center p-6 bg-white border-[3px] border-[var(--color-border)] shadow-[4px_4px_0px_var(--color-border)]">
+            <span className="font-bold text-xl text-[var(--color-muted-foreground)] uppercase animate-pulse">Waiting for network...</span>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center p-6 bg-white border-[3px] border-[var(--color-border)] shadow-[4px_4px_0px_var(--color-border)]">
-            <span className="neo-badge neo-badge-accent mb-2">Winner #1</span>
-            <span className="font-black text-6xl my-2 text-[var(--color-primary)]">{displayNumber !== null ? displayNumber : "?"}</span>
-            <span className="font-bold text-xl text-[var(--color-muted-foreground)] uppercase">Lucky Winner</span>
+            <span className="font-bold text-xl text-[var(--color-muted-foreground)] uppercase">No participants</span>
           </div>
         )}
       </div>
