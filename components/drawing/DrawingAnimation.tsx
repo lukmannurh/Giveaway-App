@@ -18,6 +18,8 @@ interface DrawingAnimationProps {
   onComplete?: () => void;
 }
 
+const randomDigit = () => Math.floor(Math.random() * 10);
+
 export function DrawingAnimation({
   roomId,
   totalWinners,
@@ -25,21 +27,13 @@ export function DrawingAnimation({
   onComplete,
 }: DrawingAnimationProps) {
   const router = useRouter();
-  const [phase, setPhase] = useState<"spinning" | "done">("spinning");
-  const [displayNumber, setDisplayNumber] = useState<number | null>(null);
+  
+  // State machine: "awaiting_winners" -> "spinning" -> "paused" -> "done"
+  const [phase, setPhase] = useState<"awaiting_winners" | "spinning" | "paused" | "done">("awaiting_winners");
+  const [currentWinnerIndex, setCurrentWinnerIndex] = useState(0);
+  const [displayDigits, setDisplayDigits] = useState<[number | string, number | string, number | string]>(['-', '-', '-']);
   const [winners, setWinners] = useState<WinnerReveal[]>([]);
   const pendingWinnersRef = useRef<WinnerReveal[]>([]);
-
-  // Fast spinning numbers
-  useEffect(() => {
-    if (phase !== "spinning") return;
-    const interval = setInterval(() => {
-      // Ensure the maxBound is at least 9 so we get a flipping effect even if there's only 1 participant
-      const maxBound = Math.max(participantCount || 99, 9);
-      setDisplayNumber(Math.floor(Math.random() * maxBound) + 1);
-    }, 50); // fast 50ms spin
-    return () => clearInterval(interval);
-  }, [phase, participantCount]);
 
   // Realtime subscription for winners
   useEffect(() => {
@@ -54,13 +48,6 @@ export function DrawingAnimation({
           selectedNumber: payload.selectedNumber,
         };
         pendingWinnersRef.current.push(newWinner);
-        
-        // If the 5000ms spin already ended, immediately reveal the winner as it arrives
-        setWinners((prev) => {
-          if (prev.find((w) => w.sequence === newWinner.sequence)) return prev;
-          // Only update state if phase is done, or if it's currently spinning (it won't render until phase is done anyway, but it's safe to sync state)
-          return [...prev, newWinner];
-        });
       })
       .subscribe();
 
@@ -69,43 +56,108 @@ export function DrawingAnimation({
     };
   }, [roomId]);
 
-  // Strict 5-second timer (ZERO latency reveal)
-  useEffect(() => {
-    const timeout = setTimeout(async () => {
-      let finalWinners = [...pendingWinnersRef.current];
-
-      // If the broadcast was missed (e.g. force draw finished instantly and broadcast fired before component mounted),
-      // we must fetch the final winners directly from the database to ensure they are displayed correctly.
-      if (finalWinners.length === 0 && participantCount > 0) {
-        try {
-          const res = await fetch(`/api/rooms/${roomId}/winners`);
-          if (res.ok) {
-            const data = await res.json();
-            // Map the API response shape to the component's expected shape
-            finalWinners = data.winners.map((w: any) => ({
-              sequence: w.sequence,
-              userId: w.userId,
-              username: w.user?.username || "Unknown User",
-              selectedNumber: w.selectedNumber,
-            }));
-            // Update the ref so it's consistent
-            pendingWinnersRef.current = finalWinners;
-          }
-        } catch (err) {
-          // Fallback handled by UI
+  const ensureWinners = async () => {
+    let finalWinners = [...pendingWinnersRef.current];
+    if (finalWinners.length === 0 && participantCount > 0) {
+      try {
+        const res = await fetch(`/api/rooms/${roomId}/winners`);
+        if (res.ok) {
+          const data = await res.json();
+          finalWinners = data.winners.map((w: any) => ({
+            sequence: w.sequence,
+            userId: w.userId,
+            username: w.user?.username || "Unknown User",
+            selectedNumber: w.selectedNumber,
+          }));
+          pendingWinnersRef.current = finalWinners;
         }
+      } catch (err) {}
+    }
+    return finalWinners;
+  };
+
+  // Hybrid animation logic
+  useEffect(() => {
+    if (phase === "done") return;
+
+    if (totalWinners > 5) {
+      // MASSIVE 3-SECOND SPIN FOR >5 WINNERS
+      if (phase === "awaiting_winners") {
+        setPhase("spinning");
+        return;
       }
-
-      setWinners(finalWinners);
-      setPhase("done");
       
-      // Refresh the server components in the background so the participant list updates
-      router.refresh();
+      if (phase === "spinning") {
+        const interval = setInterval(() => {
+          setDisplayDigits([randomDigit(), randomDigit(), randomDigit()]);
+        }, 50);
+        
+        const timeout = setTimeout(async () => {
+          clearInterval(interval);
+          const w = await ensureWinners();
+          setWinners(w);
+          setPhase("done");
+          router.refresh();
+        }, 3000); // 3 seconds rapid spin
+        
+        return () => {
+          clearInterval(interval);
+          clearTimeout(timeout);
+        };
+      }
+    } else {
+      // SEQUENTIAL SLOT MACHINE FOR <= 5 WINNERS
+      if (phase === "awaiting_winners") {
+        setPhase("spinning");
+        return;
+      }
       
-    }, 5000); // STRICT 5000ms
-
-    return () => clearTimeout(timeout);
-  }, [roomId, router, participantCount]);
+      if (phase === "spinning") {
+        const interval = setInterval(() => {
+          setDisplayDigits([randomDigit(), randomDigit(), randomDigit()]);
+        }, 50);
+        
+        const timeout = setTimeout(async () => {
+          clearInterval(interval);
+          const w = await ensureWinners();
+          const targetWinner = w.sort((a, b) => a.sequence - b.sequence)[currentWinnerIndex];
+          
+          if (targetWinner) {
+            const str = String(targetWinner.selectedNumber).padStart(3, '0');
+            setDisplayDigits([str[0], str[1], str[2]]);
+          } else {
+            setDisplayDigits(['-', '-', '-']);
+          }
+          
+          setPhase("paused");
+        }, 2500); // 2.5 seconds per winner spin
+        
+        return () => {
+          clearInterval(interval);
+          clearTimeout(timeout);
+        };
+      }
+      
+      if (phase === "paused") {
+        const timeout = setTimeout(() => {
+          const w = pendingWinnersRef.current;
+          const actualWinnerCount = w.length;
+          
+          // If we reached the end of the available winners (or participant count was 0)
+          if (currentWinnerIndex + 1 >= (actualWinnerCount || 1)) {
+            setWinners(w);
+            setPhase("done");
+            router.refresh();
+          } else {
+            setCurrentWinnerIndex(idx => idx + 1);
+            setPhase("spinning");
+          }
+        }, 1000); // 1 second pause to reveal winner
+        
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [phase, currentWinnerIndex, totalWinners, participantCount, router]);
 
   if (phase === "done") {
     return (
@@ -115,15 +167,15 @@ export function DrawingAnimation({
           {winners.length > 1 ? "WINNERS REVEALED!" : "WINNER REVEALED!"}
         </h2>
         {winners.length > 0 ? (
-          <ul className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {winners.sort((a, b) => a.sequence - b.sequence).map((w) => (
-              <li key={w.sequence} className="flex flex-col items-center justify-center p-6 bg-white border-[3px] border-[var(--color-border)] shadow-[4px_4px_0px_var(--color-border)]">
-                <span className="neo-badge neo-badge-accent mb-2">Winner #{w.sequence}</span>
-                <span className="font-black text-6xl my-2 text-[var(--color-primary)]">{w.selectedNumber}</span>
-                <span className="font-bold text-xl text-[var(--color-muted-foreground)] uppercase">{w.username}</span>
-              </li>
+              <div key={w.sequence} className="flex flex-col items-center justify-center p-6 bg-white border-[3px] border-[var(--color-border)] shadow-[4px_4px_0px_var(--color-border)]">
+                <span className="neo-badge neo-badge-accent mb-2 text-sm">Winner #{w.sequence}</span>
+                <span className="font-black text-5xl my-2 text-[var(--color-primary)]">{w.selectedNumber}</span>
+                <span className="font-bold text-lg text-[var(--color-muted-foreground)] uppercase truncate w-full">{w.username}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         ) : participantCount > 0 ? (
           <div className="flex flex-col items-center justify-center p-6 bg-white border-[3px] border-[var(--color-border)] shadow-[4px_4px_0px_var(--color-border)]">
             <span className="font-bold text-xl text-[var(--color-muted-foreground)] uppercase animate-pulse">Waiting for network...</span>
@@ -137,25 +189,34 @@ export function DrawingAnimation({
     );
   }
 
+  const DigitColumn = ({ digit }: { digit: string | number }) => (
+    <div 
+      className="flex flex-col items-center justify-center w-20 h-28 sm:w-24 sm:h-32 bg-white border-[4px] border-[var(--color-border)] overflow-hidden"
+      style={{ boxShadow: "4px 4px 0px var(--color-border)" }}
+    >
+      <span className="text-6xl sm:text-7xl font-black tabular-nums" style={{ fontFamily: "var(--font-display)" }}>
+        {digit}
+      </span>
+    </div>
+  );
+
   return (
-    <div className="neo-card p-10 text-center">
+    <div className="neo-card p-6 sm:p-10 text-center">
       <div className="neo-badge neo-badge-drawing inline-flex mb-6">
-        🎰 Drawing... Who will it be?
+        🎰 Drawing... {totalWinners <= 5 ? `Revealing Winner ${currentWinnerIndex + 1} of ${totalWinners}` : "Rapid Spin!"}
       </div>
 
-      <div
-        className="text-8xl font-black tabular-nums my-8 neo-animate-spin-number scale-110"
-        style={{ fontFamily: "var(--font-display)", minHeight: "8rem" }}
-        aria-live="polite"
-      >
-        {displayNumber !== null ? displayNumber : "000"}
+      <div className="flex justify-center gap-3 sm:gap-6 my-8" aria-live="polite">
+        <DigitColumn digit={displayDigits[0]} />
+        <DigitColumn digit={displayDigits[1]} />
+        <DigitColumn digit={displayDigits[2]} />
       </div>
 
       <p
         className="text-2xl font-black mb-4 animate-pulse"
         style={{ fontFamily: "var(--font-display)", color: "var(--color-warning)" }}
       >
-        🥁 Drumroll...
+        {phase === "paused" ? "🎉 LOCKED! 🎉" : "🥁 Drumroll..."}
       </p>
 
       <p className="text-sm mt-6 font-bold" style={{ color: "var(--color-muted-foreground)" }}>

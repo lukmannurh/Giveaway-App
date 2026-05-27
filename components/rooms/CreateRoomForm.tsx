@@ -50,8 +50,8 @@ const formSchema = z.object({
 }).refine(data => data.maxNumber > data.minNumber, {
   message: "Maximum number must be greater than minimum number",
   path: ["maxNumber"]
-}).refine(data => data.maxNumber - data.minNumber + 1 <= 10000, {
-  message: "Number range cannot exceed 10,000 numbers",
+}).refine(data => data.maxNumber - data.minNumber + 1 <= 999, {
+  message: "Number range cannot exceed 999 numbers",
   path: ["maxNumber"]
 }).refine(data => data.totalWinners <= data.maxNumber - data.minNumber + 1, {
   message: "Number of winners cannot exceed the total numbers in range",
@@ -251,6 +251,7 @@ export function CreateRoomForm() {
               id="maxNumber"
               name="maxNumber"
               type="number"
+              max={999}
               defaultValue={100}
               className={`neo-input ${errors.maxNumber ? "neo-input-error" : ""}`}
               aria-invalid={!!errors.maxNumber}

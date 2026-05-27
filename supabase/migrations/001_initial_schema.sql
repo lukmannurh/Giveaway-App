@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS rooms (
   -- Cross-field constraints
   -- total_winners must not exceed the number range size
   CONSTRAINT total_winners_lte_range CHECK (total_winners <= (max_number - min_number + 1)),
-  -- Range size must not exceed 10,000 numbers
-  CONSTRAINT range_size_lte_10000 CHECK ((max_number - min_number + 1) <= 10000)
+  -- Range size must not exceed 999 numbers
+  CONSTRAINT range_size_lte_999 CHECK ((max_number - min_number + 1) <= 999)
 );
 
 -- Indexes optimized for common query patterns

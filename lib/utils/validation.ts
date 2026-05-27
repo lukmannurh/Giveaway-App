@@ -49,9 +49,9 @@ export const createRoomSchema = z
     path: ["maxNumber"],
   })
   .refine(
-    (data) => data.maxNumber - data.minNumber + 1 <= 10000,
+    (data) => data.maxNumber - data.minNumber + 1 <= 999,
     {
-      message: "Number range cannot exceed 10,000 numbers",
+      message: "Number range cannot exceed 999 numbers",
       path: ["maxNumber"],
     }
   )
