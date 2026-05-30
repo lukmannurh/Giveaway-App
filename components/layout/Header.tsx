@@ -92,7 +92,7 @@ export async function Header() {
         <div className="flex items-center gap-2">
           {profile ? (
             <>
-              <div className="hidden sm:flex items-center gap-1 font-bold text-sm bg-[var(--color-muted)] px-3 py-1.5 border-2 border-[var(--color-border)]" style={{ boxShadow: "2px 2px 0px var(--color-border)" }}>
+              <div className="flex items-center gap-1 font-bold text-sm bg-[var(--color-muted)] px-3 py-1.5 border-2 border-[var(--color-border)]" style={{ boxShadow: "2px 2px 0px var(--color-border)" }}>
                 <span>💰</span>
                 <span>{profile.credits} Credits</span>
               </div>

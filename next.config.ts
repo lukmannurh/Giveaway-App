@@ -38,6 +38,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "googleusercontent.com",
       },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co", // Supabase Storage
+      },
     ],
     // Optimize to WebP/AVIF for mobile performance
     formats: ["image/avif", "image/webp"],
