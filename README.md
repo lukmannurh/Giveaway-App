@@ -109,7 +109,3 @@ The application will be available at [http://localhost:3000](http://localhost:30
 - **Optimistic Locking** on the database prevents double-drawing race conditions.
 
 ---
-
-<div align="center">
-  <i>Created with ❤️ by Lil Luke Son of Owi</i>
-</div>
