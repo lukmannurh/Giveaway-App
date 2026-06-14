@@ -9,6 +9,10 @@ import { createServerClient } from "@supabase/ssr";
  * Protected routes: everything else
  */
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/release/') || request.nextUrl.pathname.endsWith('.apk')) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
